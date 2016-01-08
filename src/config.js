@@ -14,7 +14,7 @@ export const PLACEHOLDER_GROUP = 2;
 export const LINK_GROUP = 3;
 
 export function defaultToken(
-  match, { linkMatch, relativePath = '', references = [], parents = [] }, whitespace) {
+  match, { linkMatch, relativePath = '', references = [], parents = [], source = '' }, whitespace) {
   return {
     content: match[MATCH_GROUP],
     link: {
@@ -24,11 +24,13 @@ export function defaultToken(
     relativePath,
     references,
     parents,
+    source,
   };
 }
 
-export function defaultSeparator(match) {
+export function defaultSeparator(match, { source = '' }) {
   return {
     content: match[0],
+    source,
   };
 }

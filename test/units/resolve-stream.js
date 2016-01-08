@@ -75,37 +75,51 @@ test.cb('should parse input with overrides', (t) => {
     link: {
       href: 'animal animal:wolf.md food:"cheese" remote:http://github.com/example.md null:',
     },
+    line: 1,
+    column: 0,
   };
-  const expected = [
+  const expectedReferences = [
     {
       placeholder: 'animal',
       href: 'wolf.md',
       hrefType: 'local',
+      source: 'test.md',
+      line: 1,
+      column: 11,
     },
     {
       placeholder: 'food',
       href: 'cheese',
       hrefType: 'string',
+      source: 'test.md',
+      line: 1,
+      column: 31,
     },
     {
       placeholder: 'remote',
       href: 'http://github.com/example.md',
       hrefType: 'http',
+      source: 'test.md',
+      line: 1,
+      column: 47,
     },
     {
       placeholder: 'null',
       href: '',
       hrefType: 'string',
+      source: 'test.md',
+      line: 1,
+      column: 81,
     },
   ];
-  const testStream = new ResolveStream();
+  const testStream = new ResolveStream('test.md');
 
   t.plan(1);
   testStream
     .on('readable', function read() {
       let chunk = null;
       while ((chunk = this.read()) !== null) {
-        t.same(chunk.references, expected);
+        t.same(chunk.references, expectedReferences);
       }
     })
     .on('error', () => t.fail())
@@ -163,6 +177,8 @@ test.cb('should parse input with fallback link', (t) => {
     link: {
       href: 'animal || "fox" feline:cat.md food:cheese.md',
     },
+    line: 1,
+    column: 0,
   };
   const expected = {
     content: ':[](animal || "fox" feline:cat.md food:cheese.md)',
@@ -171,19 +187,27 @@ test.cb('should parse input with fallback link', (t) => {
         placeholder: 'feline',
         href: 'cat.md',
         hrefType: 'local',
+        source: 'test.md',
+        line: 1,
+        column: 27,
       },
       {
         placeholder: 'food',
         href: 'cheese.md',
         hrefType: 'local',
+        source: 'test.md',
+        line: 1,
+        column: 39,
       },
     ],
     link: {
       href: 'fox',
       hrefType: 'string',
     },
+    line: 1,
+    column: 0,
   };
-  const testStream = new ResolveStream();
+  const testStream = new ResolveStream('test.md');
 
   t.plan(1);
   testStream
@@ -232,7 +256,6 @@ test.cb('should resolve link relative to file', (t) => {
     link: {
       href: 'animal.md',
     },
-    relativePath: 'foo',
   };
   const expected = {
     content: ':[](animal.md)',
@@ -241,9 +264,8 @@ test.cb('should resolve link relative to file', (t) => {
       href: 'foo/animal.md',
       hrefType: 'local',
     },
-    relativePath: 'foo',
   };
-  const testStream = new ResolveStream();
+  const testStream = new ResolveStream('foo/test.md');
 
   t.plan(1);
   testStream

@@ -1,7 +1,7 @@
 /**
 * Hercule
 * A simple markdown transclusion tool
-* Author: james ramsay
+* Author: James Ramsay
 */
 
 import fs from 'fs';
@@ -24,6 +24,7 @@ const parser = dashdash.createParser({
       help: 'File to output.',
       helpArg: 'FILE',
     },
+    // TODO: unit test transcludeStringSync with relativePath
     {
       names: ['relativePath', 'r'],
       type: 'string',
@@ -33,6 +34,11 @@ const parser = dashdash.createParser({
       name: 'reporter',
       type: 'string',
       help: 'Supported reporters include json, json-stderr, tree',
+    },
+    {
+      name: 'sourcemap',
+      type: 'bool',
+      help: 'Generate sourcemap for output file.',
     },
   ],
 });
@@ -55,6 +61,7 @@ if (opts.help) {
 function main() {
   let inputStream;
   let outputStream;
+  let sourceFile;
   const options = {
     relativePath: '',
     parents: [],
@@ -69,6 +76,10 @@ function main() {
     // Reading input from file
     // TODO: handle file error!
     inputStream = fs.createReadStream(opts._args[0], { encoding: 'utf8' });
+
+    sourceFile = path.normalize(opts._args[0]);
+
+    // TODO: remove these two lines
     options.source = path.normalize(opts._args[0]);
     options.relativePath = path.dirname(opts._args[0]);
   }
@@ -76,12 +87,15 @@ function main() {
   if (opts.output) {
     // Writing output to file
     outputStream = fs.createWriteStream(opts.output, { encoding: 'utf8' });
+    options.generatedFile = opts.output;
+    // options.sourcemapFile = `${opts.output}.map`;
   } else {
     // Writing output to stdout
     outputStream = process.stdout;
+    options.generatedFile = 'stdout';
   }
 
-  const transclude = new Transcluder(options);
+  const transclude = new Transcluder(sourceFile, options);
 
   transclude.on('error', (err) => {
     if (opts.reporter === 'json-err') {
@@ -90,6 +104,10 @@ function main() {
       process.stdout.write(`\n\nERROR: ${err.msg} (${err.path})\n`);
     }
     process.exit(1);
+  });
+
+  transclude.on('sourcemap', (srcMap) => {
+    if (opts.output) fs.writeFileSync(`${opts.output}.map`, JSON.stringify(srcMap));
   });
 
   inputStream.pipe(transclude).pipe(outputStream);

@@ -31,8 +31,8 @@ export default function InflateStream(opt) {
   const options = _.merge({}, opt);
 
   function inflateDuplex(chunk, source) {
-    const resolver = new ResolveStream();
-    const inflater = new InflateStream();
+    const resolver = new ResolveStream(source);
+    const inflater = new InflateStream({ source });
     const trimmer = new TrimStream();
 
     function token(match) {
@@ -48,7 +48,7 @@ export default function InflateStream(opt) {
 
     function separator(match) {
       return _.merge(
-        defaultSeparator(match),
+        defaultSeparator(match, options),
         {
           indent: chunk.indent,
         }

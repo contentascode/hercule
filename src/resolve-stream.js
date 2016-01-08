@@ -33,9 +33,13 @@ import { LINK_TYPES } from './config';
 * Input and output properties can be altered by providing options
 */
 
-function resolve(unresolvedLink, references, relativePath) {
-  const primary = unresolvedLink.primary;
-  const fallback = unresolvedLink.fallback;
+function resolve(primary, fallback, references, relativePath) {
+  // console.log(`Resolve:`);
+  // console.log(primary);
+  // console.log(fallback);
+  // console.log(references);
+  // const primary = unresolvedLink.primary;
+  // const fallback = unresolvedLink.fallback;
   const override = _.find(references, { placeholder: primary.href });
   const link = _.pick(override || fallback || primary, ['href', 'hrefType']);
 
@@ -46,47 +50,66 @@ function resolve(unresolvedLink, references, relativePath) {
   return link;
 }
 
-function parse(rawLink, relativePath) {
+function parse(rawLink, rawLinkPath, sourcePath, sourceFile, cursor) {
   // Parse link body using peg.js grammar
-  // This allows complex links with placeholders, fallbacks, and overrides
-  const parsedLink = grammar.parse(rawLink);
+  // Returns object: { primary, fallback, references }
+  const parsedLink = grammar.parse(rawLinkPath);
 
-  // Make references relative
-  const parsedReferences = _.map(parsedLink.references, ({ placeholder, href, hrefType }) => {
-    const relativeHref = (hrefType === LINK_TYPES.LOCAL) ? path.join(relativePath, href) : href;
-    return { placeholder, hrefType, href: relativeHref };
+  // Make local references relative to the source file
+  parsedLink.references = _.map(parsedLink.references, ({ placeholder, href, hrefType }) => {
+    const relativeHref = (hrefType === LINK_TYPES.LOCAL) ? path.join(sourcePath, href) : href;
+    const ref = {
+      placeholder,
+      href: relativeHref,
+      hrefType,
+      source: sourceFile,
+      line: cursor.line,
+      column: cursor.column + rawLink.indexOf(`${placeholder}`) + placeholder.length + 1,
+    };
+
+    return ref;
   });
 
-  return { parsedLink, parsedReferences };
+  return parsedLink;
 }
 
-export default function ResolveStream() {
+export default function ResolveStream(sourceFile) {
   function transform(chunk, encoding, cb) {
-    const rawLink = _.get(chunk, ['link', 'href']);
-    const relativePath = _.get(chunk, 'relativePath') || '';
+    const rawLink = _.get(chunk, 'content');
+    const rawLinkPath = _.get(chunk, ['link', 'href']);
     const parentRefs = _.get(chunk, 'references') || [];
-    let parsedLink;
-    let parsedReferences;
+    const sourcePath = path.dirname(sourceFile);
+    const cursor = {
+      line: _.get(chunk, 'line'),
+      column: _.get(chunk, 'column'),
+    };
+
+    // Example: :[link](pimrary || fallback placeholder:link/path.md)
+    // The 'primary', 'fallback', and 'references' from parent files are required to resolve the link
+    let primary;
+    let fallback;
+    let references;
 
     // No link to parse, move along
-    if (!rawLink) {
+    if (!rawLinkPath) {
       this.push(chunk);
       return cb();
     }
 
+    // Parse link body using peg.js grammar
+    // This allows complex links with placeholders, fallbacks, and overrides
     try {
-      ({ parsedLink, parsedReferences } = parse(rawLink, relativePath));
+      ({ primary, fallback, references } = parse(rawLink, rawLinkPath, sourcePath, sourceFile, cursor));
     } catch (err) {
       this.push(chunk);
-      this.emit('error', { msg: 'Link could not be parsed', path: rawLink, error: err });
+      this.emit('error', { msg: 'Link could not be parsed', path: rawLinkPath, error: err });
       return cb();
     }
 
-    const references = _.uniq([...parsedReferences, ...parentRefs]);
-    const link = resolve(parsedLink, parentRefs, relativePath);
+    const link = resolve(primary, fallback, parentRefs, sourcePath);
 
     this.emit('source', link.href);
-    this.push(_.assign(chunk, { link, references }));
+    this.push(_.assign(chunk, { link, references: _.uniq([...references, ...parentRefs]) }));
     return cb();
   }
 
