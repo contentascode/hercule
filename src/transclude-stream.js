@@ -24,12 +24,10 @@ const DEFAULT_OPTIONS = {
 // The sourceFile should be relative to the sourcePath
 export default function Transcluder(sourceFile, opt) {
   const options = _.merge({}, DEFAULT_OPTIONS, opt);
-  const source = options.source;
-  const linkRegExp = options.linkRegExp;
-  const linkMatch = options.linkMatch;
-  const generatedFile = options.generatedFile;
-  const sourcemapFile = options.sourcemapFile;
-  const sourcemapCallback = options.sourcemapCallback;
+  const source = _.get(options, 'source');
+  const linkRegExp = _.get(options, 'linkRegExp') || defaultTokenRegExp;
+  const linkMatch = _.get(options, 'linkMatch');
+  const generatedFile = _.get(options, 'generatedFile');
 
   const sourcePaths = [];
   let sourceMap;
@@ -43,12 +41,11 @@ export default function Transcluder(sourceFile, opt) {
   }
 
   const tokenizerOptions = { leaveBehind: `${WHITESPACE_GROUP}`, token, separator };
-  const linkRegExp = _.get(options, 'linkRegExp') || defaultTokenRegExp;
   const tokenizer = regexpTokenizer(tokenizerOptions, linkRegExp);
   const resolver = new ResolveStream(sourceFile);
   const inflater = new InflateStream({ linkRegExp, linkMatch, source });
   const indenter = new IndentStream();
-  const sourcemap = new SourceMapStream(generatedFile, sourcemapFile, sourcemapCallback);
+  const sourcemap = new SourceMapStream(generatedFile);
   const stringify = get('content');
 
   tokenizer
