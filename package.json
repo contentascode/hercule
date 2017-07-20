@@ -11,7 +11,6 @@
     "posttest": "npm run lint",
     "coverage": "nyc report --reporter=html && open coverage/lcov-report/index.html",
     "codecov": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "prepare": "npm run compile",
     "compile": "babel src --out-dir lib --source-maps && npm run compile-grammars",
     "compile-grammars": "mkdir -p ./lib/grammar && pegjs -o lib/grammar/link.js src/grammar/link.pegjs",
     "lint": "eslint ./src ./test",
